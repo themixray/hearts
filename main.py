@@ -4,7 +4,7 @@ import random
 import threading
 pygame.init()
 
-size = (500,500)
+size = (1280,720)
 title = "Сердечки"
 
 class heart:
@@ -16,7 +16,7 @@ class heart:
             pygame.image.load(self.path),
             (self.scale,self.scale))
         self.speed = random.randint(5,25)
-        self.x = random.randint(0,size[1]-self.scale)
+        self.x = random.randint(0,size[0]-self.scale)
         self.y = -self.scale
         self.alpha = self._alpha()
         self.ready = True

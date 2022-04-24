@@ -8,25 +8,27 @@ size = (1280,720)
 title = "Сердечки"
 
 class heart:
-    def __init__(self,path):
-        self.recreate(path)
+    def __init__(self,path,z):
+        self.recreate(path,z)
     def _create(self):
-        self.scale = random.randint(50,100)
+        self.scale = int((self.z/hearts_len*50)+50)
         self.sprite = pygame.transform.scale(
             pygame.image.load(self.path),
             (self.scale,self.scale))
+        self.sprite.blit(self._alpha(0,0,0,(hearts_len-self.z)/hearts_len*100),(0,0))
         self.speed = random.randint(5,25)
         self.x = random.randint(0,size[0]-self.scale)
         self.y = -self.scale
-        self.alpha = self._alpha()
+        self.alpha = self._alpha(0,0,0,255/(size[1]/self.speed))
         self.ready = True
-    def recreate(self,path):
+    def recreate(self,path,z):
+        self.z = z
         self.ready = False
         self.path = path
         threading.Thread(target=self._create,daemon=1).start()
-    def _alpha(self):
+    def _alpha(self,r,g,b,i):
         a = pygame.Surface((self.scale,self.scale),pygame.SRCALPHA)
-        a.fill((0,0,0,255/(size[1]/self.speed)))
+        a.fill((r,g,b,i))
         for x in range(self.scale):
             for y in range(self.scale):
                 if self.sprite.get_at((x,y))[3] == 0:
@@ -37,7 +39,7 @@ class heart:
         self.y += self.speed
         self.sprite.blit(self.alpha,(0,0))
         if self.y >= size[1]:
-            self.recreate(self.path)
+            self.recreate(self.path,self.z)
     def draw(self,surf):
         if not self.ready: return
         surf.blit(self.sprite,(self.x,self.y))
@@ -48,7 +50,8 @@ def gradient(c1,c2,w,h):
     s.set_at((0,1),c2)
     return pygame.transform.smoothscale(s,(w,h))
 
-hearts = [heart("sprites/"+random.choice(os.listdir("sprites"))) for i in range(25)]
+hearts_len = 25
+hearts = [heart("sprites/"+random.choice(os.listdir("sprites")),i) for i in range(hearts_len)]
 
 win = pygame.display.set_mode(size)
 pygame.display.set_caption(title+" [0 FPS]")

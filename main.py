@@ -8,41 +8,55 @@ size = (1280,720)
 title = "Сердечки"
 
 class heart:
-    def __init__(self,path,z):
-        self.recreate(path,z)
-    def _create(self):
-        self.scale = int((self.z/hearts_len*50)+50)
-        self.sprite = pygame.transform.scale(
-            pygame.image.load(self.path),
-            (self.scale,self.scale))
-        self.sprite.blit(self._alpha(0,0,0,(hearts_len-self.z)/hearts_len*100),(0,0))
-        self.speed = random.randint(5,25)
-        self.x = random.randint(0,size[0]-self.scale)
-        self.y = -self.scale
-        self.alpha = self._alpha(0,0,0,255/(size[1]/self.speed))
-        self.ready = True
-    def recreate(self,path,z):
-        self.z = z
+    def __init__(self,path,
+                 z,pos=None,
+                 temp=False):
+        self.destroyed = False
         self.ready = False
         self.path = path
+        self.temp = temp
+        self.reload(z)
+        self.recreate(pos)
+    def reload(self,z):
+        self.z = z
+        self.scale = int((z/hearts_len*100)+50)
+    def _create(self):
+        self.sprite = pygame.transform.scale(
+	        pygame.image.load(self.path),
+	        (self.scale,self.scale))
+        self.sprite.convert_alpha()
+        self.speed = random.randint(5,25)
+        self.alpha = 0
+        self.ready = True
+    def recreate(self,pos=None):
+        if self.destroyed: return
+        if pos == None:
+            self.x = random.randint(0,size[0]-self.scale)
+            self.y = -self.scale
+        else:
+            self.x, self.y = pos
         threading.Thread(target=self._create,daemon=1).start()
-    def _alpha(self,r,g,b,i):
-        a = pygame.Surface((self.scale,self.scale),pygame.SRCALPHA)
-        a.fill((r,g,b,i))
-        for x in range(self.scale):
-            for y in range(self.scale):
-                if self.sprite.get_at((x,y))[3] == 0:
-                    a.set_at((x,y),(0,0,0,0))
-        return a
     def move(self):
+        if self.destroyed: return
         if not self.ready: return
         self.y += self.speed
-        self.sprite.blit(self.alpha,(0,0))
+        self.alpha += 255/(size[1]/self.speed)
+        self.sprite.set_alpha(255-self.alpha)
         if self.y >= size[1]:
-            self.recreate(self.path,self.z)
+            if not self.temp:
+                self.reload(self.z)
+                self.recreate()
+            else:
+                self.destroy()
     def draw(self,surf):
+        if self.destroyed: return
         if not self.ready: return
         surf.blit(self.sprite,(self.x,self.y))
+    def destroy(self):
+        self.destroyed = True
+        hearts.remove(self)
+    def contains(self,pos):
+        return pos[0] > self.x and pos[1] > self.y and pos[0] < self.x+self.scale and pos[1] < self.y+self.scale
 
 def gradient(c1,c2,w,h):
     s = pygame.Surface((1,2))
@@ -50,15 +64,32 @@ def gradient(c1,c2,w,h):
     s.set_at((0,1),c2)
     return pygame.transform.smoothscale(s,(w,h))
 
-hearts_len = 25
-hearts = [heart("sprites/"+random.choice(os.listdir("sprites")),i) for i in range(hearts_len)]
+def make_heart(center):
+    global hearts_len
+    hearts.append(heart(
+        "sprites/"+random.choice(os.listdir("sprites")),
+        hearts_len,(center[0]-25,center[1]-25),True))
+    hearts_len += 1
+    for i in hearts:
+        i.reload(i.z)
+def delete_heart(center):
+    h = None
+    for i in hearts:
+        if i.contains(center):
+            h = i
+            break
+    if h != None:
+        h.destroy()
 
 win = pygame.display.set_mode(size)
-pygame.display.set_caption(title+" [0 FPS]")
+pygame.display.set_caption(title+" [LOADING]")
+
+hearts_len = 125
+hearts = [heart("sprites/"+random.choice(os.listdir("sprites")),i) for i in range(hearts_len)]
 
 clock = pygame.time.Clock()
 
-back = gradient((128,0,0),(8,0,0),*size)
+back = gradient((192,0,0),(64,0,0),*size)
 
 run = True
 
@@ -66,6 +97,11 @@ while run:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 3:
+                make_heart(event.pos)
+            if event.button == 1:
+                delete_heart(event.pos)
     win.blit(back,(0,0))
     for i in hearts:
         i.move()
